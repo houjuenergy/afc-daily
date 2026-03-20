@@ -1,0 +1,7 @@
+excel_files/*
+!excel_files/README.md
+private.py
+__pycache__/
+build/
+dist/
+*.spec
