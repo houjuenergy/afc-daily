@@ -1,6 +1,6 @@
 # AFC Battery Daily Report Merging Script
 
-> **This code is property of Hou Ju Energy Technology Corporation.**
+> **This code is property of Hou Ju Energy Technology Corporation. See [COPYRIGHT](LICENSE) for more details.**
 
 Scans the Outlook app for any daily reports sent by bidders and combines them into one single Excel file.
 
@@ -37,10 +37,10 @@ pip install -r requirements.txt
 ```python
 SOURCES = [
     {
-        "name": "", # NAME OF SENDER HERE
-        "subject_keyword": "", # EMAIL SUBJECT HERE
-        "exclude_keyword": "", # EXCLUDE SUBJECT KEYWORDS HERE
-        "attachment_exclude_keyword": "", # EXCLUDE ATTACHMENTS HERE
+        "name": "",                              # NAME OF SENDER HERE
+        "subject_keyword": "",                   # EMAIL SUBJECT HERE
+        "exclude_keyword": "",                   # EXCLUDE SUBJECT KEYWORDS HERE
+        "attachment_exclude_keyword": "",        # EXCLUDE ATTACHMENTS HERE
         "sender_address": "COMPANY@example.com", # EMAIL HERE
     }
 ]
@@ -50,11 +50,11 @@ SOURCES = [
 ```python
 SOURCES = [
     {
-        "name": "", # Because I don't care specifically who emails me
+        "name": "",                             # Because I don't care specifically who emails me
         "subject_keyword": "AFC daily reports", # I want all emails that contain this subject
-        "exclude_keyword": "", # No need to exclude since we specified a subject already
+        "exclude_keyword": "",                  # No need to exclude since we specified a subject already
         "attachment_exclude_keyword": "weekly", # Sometimes they accidentally send us the weekly reports, I want to ignore these
-        "sender_address": "@stepower.com", # I want the daily reports from all STE Power domains, the sender username doesn't matter
+        "sender_address": "@stepower.com",      # I want the daily reports from all STE Power domains, the sender username doesn't matter
     },
     {
         # Next bidder company goes here
