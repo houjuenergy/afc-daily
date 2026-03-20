@@ -1,6 +1,6 @@
 # AFC Battery Daily Report Merging Script
 
-> **This code is property of Hou Ju Energy Technology Corporation. See [COPYRIGHT](LICENSE) for more details.**
+> **This code is property of Hou Ju Energy Technology Corporation. See [LICENSE](LICENSE) for more details.**
 
 Scans the Outlook app for any daily reports sent by bidders and combines them into one single Excel file.
 
@@ -133,3 +133,7 @@ Just change the 16 to another number
 **Files are being skipped as "duplicates"**
 - The script won't download the same file twice
 - Delete old files if you want to re-download them
+
+---
+
+If you still have issues, please contact HKE-PM for help (Kin)
