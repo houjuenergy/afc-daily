@@ -49,8 +49,7 @@ def extract_date_from_filename(filename):
 
 # creates the folders and returns the path object for the specific day folder
 def get_output_path(date_obj):
-    script_dir = Path(__file__).parent.absolute()
-    main_folder = script_dir / "excel_files"
+    main_folder = Path(private.PATH)
     
     year_str = date_obj.strftime("%Y")  # year
     month_str = date_obj.strftime("%m") # month
@@ -102,147 +101,150 @@ def process_emails(start_date=None, end_date=None, auto_yes=False):
         
         print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Using account: {selected_store.Name}")
         
-        # find the Inbox folder in the selected account
-        inbox = None
-        for i in range(1, selected_store.Folders.Count + 1):
-            folder = selected_store.Folders.Item(i)
-            # inbox names in eng and chinese
-            if folder.Name.lower() in ["inbox", "收件匣", "收件箱"]:
-                inbox = folder
-                break
-        
-        if inbox is None:
-            # try the first folder or raise error
-            print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Could not find Inbox folder. Available folders:")
-            for i in range(1, selected_store.Folders.Count + 1):
-                print(f"  - {selected_store.Folders.Item(i).Name}")
-            return {}
-        
-        messages = inbox.Items
-        messages.Sort("[ReceivedTime]", True) # newest first
-
         download_count = 0
         downloaded_by_date = {} # return value
         
-        for message in messages:
+        # ignored folders list
+        ignored_folders = ["deleted items", "封件刪除", "已删除邮件", "drafts", "草稿", "outbox", "寄件匣", "发件箱", "junk email", "垃圾郵件", "垃圾邮件"]
+        
+        def scan_folder(folder):
+            nonlocal download_count, downloaded_by_date
+            
+            # skip trashed or unwanted
+            if folder.Name.lower() in ignored_folders:
+                return
+                
             try:
-                subject = message.Subject
-                sender = ""
-                try: 
-                    # sender_email_address can sometimes fail depending on exchange type
-                    sender = message.SenderEmailAddress
-                except:
+                messages = folder.Items
+                messages.Sort("[ReceivedTime]", True) # newest first
+                
+                # if there are valid items, notify user
+                if messages.Count > 0:
+                    print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Scanning folder: {folder.Name}")
+                
+            except Exception:
+                # some folders cant be accessed or sorted
+                pass
+            else:
+                for message in messages:
                     try:
-                        sender = message.Sender.Address
-                    except:
-                        pass
-                
-                received_time = message.ReceivedTime
-                msg_date = received_time.date()
-
-                print(f"{config.colors.BOLD}{config.colors.BLUE}[SCANNING]{config.colors.RESET} \n {config.colors.MAGENTA}Date={config.colors.RESET}{msg_date} \n {config.colors.MAGENTA}Sender={config.colors.RESET}{sender} \n {config.colors.MAGENTA}Subject={config.colors.RESET}{subject}") 
-
-                # stop if we go past the start date
-                if msg_date < start_date:
-                    break
-                
-                # check if within range
-                if not (start_date <= msg_date <= end_date):
-                    continue
-                
-                target_directory = get_output_path(msg_date)
-                
-                matched_source = None
-                for source in private.SOURCES:
-                    req_subject = source.get("subject_keyword", "").lower()
-                    req_sender = source.get("sender_address", "").lower()
-                    req_exclude = source.get("exclude_keyword", "")
-                    
-                    # if a field is blank in the private.py file, ignore
-                    # both must match if both fields are present
-                    
-                    # check exclusion
-                    if req_exclude:
-                        if isinstance(req_exclude, list):
-                            if any(ex.lower() in subject.lower() for ex in req_exclude):
-                                continue 
-                        elif req_exclude.lower() in subject.lower():
-                            continue 
-
-                    # check keyword
-                    if req_subject:
-                        subject_ok = req_subject in subject.lower()
+                        subject = getattr(message, 'Subject', None)
+                        if not subject:
+                            continue
+                            
+                        sender = ""
+                        try: 
+                            sender = message.SenderEmailAddress
+                        except:
+                            try:
+                                sender = message.Sender.Address
+                            except:
+                                pass
                         
-                    sender_ok = True
-                    if req_sender:
-                        sender_ok = req_sender in sender.lower()
-                    
-                    # if both checks passed or were skipped then its a match
-                    if subject_ok and sender_ok:
-                        matched_source = source
-                        break
-                
-                if matched_source:
-                    print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} Found match: '{subject}' from {matched_source['name']}")
-                    
-                    attachments = message.Attachments
-                    if attachments.Count > 0:
-                        for i in range(1, attachments.Count + 1):
-                            attachment = attachments.Item(i)
-                            filename = attachment.FileName
+                        received_time = getattr(message, 'ReceivedTime', None)
+                        if not received_time:
+                            continue
                             
-                            # check specific attachment exclusion
-                            req_att_exclude = matched_source.get("attachment_exclude_keyword", "")
-                            if req_att_exclude:
-                                if isinstance(req_att_exclude, list):
-                                    if any(ex.lower() in filename.lower() for ex in req_att_exclude):
-                                        print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping excluded attachment: {filename}")
+                        msg_date = received_time.date()
+
+                        # stop if we go past the start date
+                        if msg_date < start_date:
+                            break
+                        
+                        # check if within range
+                        if not (start_date <= msg_date <= end_date):
+                            continue
+                        
+                        target_directory = get_output_path(msg_date)
+                        
+                        matched_source = None
+                        for source in private.SOURCES:
+                            req_subject = source.get("subject_keyword", "").lower()
+                            req_sender = source.get("sender_address", "").lower()
+                            req_exclude = source.get("exclude_keyword", "")
+                            
+                            if req_exclude:
+                                if isinstance(req_exclude, list):
+                                    if any(ex.lower() in subject.lower() for ex in req_exclude):
+                                        continue 
+                                elif req_exclude.lower() in subject.lower():
+                                    continue 
+
+                            if req_subject:
+                                subject_ok = req_subject in subject.lower()
+                                
+                            sender_ok = True
+                            if req_sender:
+                                sender_ok = req_sender in sender.lower()
+                            
+                            if subject_ok and sender_ok:
+                                matched_source = source
+                                break
+                        
+                        if matched_source:
+                            print(f"{config.colors.BOLD}{config.colors.BLUE}[SCANNING]{config.colors.RESET} \n {config.colors.MAGENTA}Date={config.colors.RESET}{msg_date} \n {config.colors.MAGENTA}Sender={config.colors.RESET}{sender} \n {config.colors.MAGENTA}Subject={config.colors.RESET}{subject}") 
+                            print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} Found match: '{subject}' from {matched_source['name']}")
+                            
+                            attachments = message.Attachments
+                            if attachments.Count > 0:
+                                for i in range(1, attachments.Count + 1):
+                                    attachment = attachments.Item(i)
+                                    filename = attachment.FileName
+                                    
+                                    req_att_exclude = matched_source.get("attachment_exclude_keyword", "")
+                                    if req_att_exclude:
+                                        if isinstance(req_att_exclude, list):
+                                            if any(ex.lower() in filename.lower() for ex in req_att_exclude):
+                                                print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping excluded attachment: {filename}")
+                                                continue
+                                        elif req_att_exclude.lower() in filename.lower():
+                                            print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping excluded attachment: {filename}")
+                                            continue
+
+                                    if filename.lower().endswith(('.png', '.jpg', '.gif', '.bmp')):
                                         continue
-                                elif req_att_exclude.lower() in filename.lower():
-                                    print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping excluded attachment: {filename}")
-                                    continue
+                                    
+                                    file_date = extract_date_from_filename(filename)
+                                    if file_date:
+                                        final_target_directory = get_output_path(file_date)
+                                    else:
+                                        final_target_directory = get_output_path(msg_date)
 
-                            # skip embedded images in mail
-                            # remove this check if ur expecting relevant images in the email
-                            if filename.lower().endswith(('.png', '.jpg', '.gif', '.bmp')):
-                                continue
-                            
-                            # determine the target directory based on filename date
-                            file_date = extract_date_from_filename(filename)
-                            if file_date:
-                                final_target_directory = get_output_path(file_date)
-                            else:
-                                # if theres none then just fallback to email received date
-                                final_target_directory = get_output_path(msg_date)
+                                    clean_name = f"{matched_source['name']}_{filename}"
+                                    save_path = final_target_directory / clean_name
+                                    
+                                    if save_path.exists():
+                                        print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping duplicate: {clean_name}")
+                                        continue
 
-                            # save file
-                            clean_name = f"{matched_source['name']}_{filename}"
-                            save_path = final_target_directory / clean_name
-                            
-                            if save_path.exists():
-                                print(f"{config.colors.BOLD}{config.colors.CYAN}[INFO]{config.colors.RESET} Skipping duplicate: {clean_name}")
-                                continue
+                                    print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Saving: {save_path}")
+                                    attachment.SaveAsFile(str(save_path))
+                                    download_count += 1
+                                    
+                                    date_str = (file_date or msg_date).strftime("%Y%m%d")
+                                    if date_str not in downloaded_by_date:
+                                        downloaded_by_date[date_str] = []
+                                    downloaded_by_date[date_str].append(str(save_path))
+                                    
+                                    date_key = msg_date.isoformat()
+                                    if date_key not in downloaded_by_date:
+                                        downloaded_by_date[date_key] = []
+                                    downloaded_by_date[date_key].append(str(save_path))
 
-                            # save individual attachments bcs we dont wanna unzip later
-                            print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Saving: {save_path}")
-                            attachment.SaveAsFile(str(save_path))
-                            download_count += 1
-                            
-                            # add to tracking dict
-                            date_str = (file_date or msg_date).strftime("%Y%m%d")
-                            if date_str not in downloaded_by_date:
-                                downloaded_by_date[date_str] = []
-                            downloaded_by_date[date_str].append(str(save_path))
-                            
-                            # track
-                            date_key = msg_date.isoformat()
-                            if date_key not in downloaded_by_date:
-                                downloaded_by_date[date_key] = []
-                            downloaded_by_date[date_key].append(str(save_path))
+                    except Exception as error:
+                        # continue looping through messages even if one fails
+                        continue
 
-            except Exception as error:
-                print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Error processing message: {error}")
-                continue
+            # recursively scan subfolders
+            try:
+                for sub_i in range(1, folder.Folders.Count + 1):
+                    scan_folder(folder.Folders.Item(sub_i))
+            except Exception:
+                pass
+                
+        # scan all root folders in the selected account
+        for main_i in range(1, selected_store.Folders.Count + 1):
+            scan_folder(selected_store.Folders.Item(main_i))
 
         print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} Downloaded {download_count} files.")
         return downloaded_by_date

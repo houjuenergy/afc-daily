@@ -15,7 +15,7 @@ import private
 import afc_downloader
 import afc_merger
 
-EXCEL_FILES_ROOT = script_dir / "excel_files"
+EXCEL_FILES_ROOT = Path(private.PATH)
 
 # get the date range
 def get_date_range_from_user():
@@ -62,9 +62,9 @@ def process_date_range(start_date, end_date):
         
         target_folder = EXCEL_FILES_ROOT / year_str / month_str / day_str
         
-        if target_folder.exists() and any(target_folder.glob("*.xlsx")):
+        if target_folder.exists() and any(target_folder.rglob("*.xlsx")):
             # Check for 16 files requirement
-            all_xlsx = list(target_folder.glob("*.xlsx"))
+            all_xlsx = list(target_folder.rglob("*.xlsx"))
             valid_files = [f for f in all_xlsx if "MasterReport" not in f.name and not f.name.startswith("~$")]
             
             if len(valid_files) < 16:
