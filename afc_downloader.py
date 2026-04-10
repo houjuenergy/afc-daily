@@ -63,7 +63,14 @@ def get_output_path(date_obj):
         
     return target_folder
 
-def process_emails(start_date=None, end_date=None, auto_yes=False):
+def get_available_accounts():
+    try:
+        outlook = win32.Dispatch("Outlook.Application").GetNamespace("MAPI")
+        return [outlook.Folders.Item(i).Name for i in range(1, outlook.Folders.Count + 1)]
+    except Exception:
+        return []
+
+def process_emails(start_date=None, end_date=None, auto_yes=False, account_name=None):
     try:
         if start_date is None or end_date is None:
             start_date, end_date = get_date_range_from_user()
@@ -77,27 +84,34 @@ def process_emails(start_date=None, end_date=None, auto_yes=False):
         stores = outlook.Folders
         selected_store = None
         
-        if stores.Count > 1 and not auto_yes:
-            print(f"{config.colors.BOLD}{config.colors.CYAN}Available Outlook Accounts:{config.colors.RESET}")
+        if account_name:
             for i in range(1, stores.Count + 1):
-                print(f"  {i}. {stores.Item(i).Name}")
-            
-            while True:
-                try:
-                    selection = input(f"{config.colors.BOLD}{config.colors.CYAN}Select account (1-{stores.Count}): {config.colors.RESET}").strip()
-                    selection = int(selection)
-                    if 1 <= selection <= stores.Count:
-                        selected_store = stores.Item(selection)
-                        break
-                    print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Invalid selection.")
-                except ValueError:
-                    print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Please enter a number.")
-        else:
-            # REMOVE THIS ONCE AUK Y EMAIL CAN BE REMOVED
-            if stores.Count >= 2:
-                selected_store = stores.Item(2)
+                if stores.Item(i).Name == account_name:
+                    selected_store = stores.Item(i)
+                    break
+        
+        if not selected_store:
+            if stores.Count > 1 and not auto_yes:
+                print(f"{config.colors.BOLD}{config.colors.CYAN}Available Outlook Accounts:{config.colors.RESET}")
+                for i in range(1, stores.Count + 1):
+                    print(f"  {i}. {stores.Item(i).Name}")
+                
+                while True:
+                    try:
+                        selection = input(f"{config.colors.BOLD}{config.colors.CYAN}Select account (1-{stores.Count}): {config.colors.RESET}").strip()
+                        selection = int(selection)
+                        if 1 <= selection <= stores.Count:
+                            selected_store = stores.Item(selection)
+                            break
+                        print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Invalid selection.")
+                    except ValueError:
+                        print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Please enter a number.")
             else:
-                selected_store = stores.Item(1)
+                # REMOVE THIS ONCE AUK Y EMAIL CAN BE REMOVED
+                if stores.Count >= 2:
+                    selected_store = stores.Item(2)
+                else:
+                    selected_store = stores.Item(1)
         
         print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Using account: {selected_store.Name}")
         
