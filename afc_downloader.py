@@ -148,25 +148,33 @@ def process_emails(start_date=None, end_date=None, auto_yes=False, account_name=
                             
                         sender = ""
                         try: 
-                            sender = message.SenderEmailAddress
-                        except:
+                            # Try to handle Exchange Internal Email Addresses which do not look like normal SMTP format
+                            if message.SenderEmailType == "EX":
+                                try:
+                                    sender = message.Sender.GetExchangeUser().PrimarySmtpAddress
+                                except Exception:
+                                    sender = message.SenderEmailAddress
+                            else:
+                                sender = message.SenderEmailAddress
+                        except Exception:
                             try:
                                 sender = message.Sender.Address
-                            except:
+                            except Exception:
                                 pass
-                        
+                                
+                        # add the sender's display name to the string so that it's searchable as well just in case
+                        sender_name = getattr(message, 'SenderName', "")
+                        sender = f"{sender_name} <{sender}>"
                         received_time = getattr(message, 'ReceivedTime', None)
                         if not received_time:
                             continue
                             
                         msg_date = received_time.date()
 
-                        # stop if we go past the start date
+# check if within range
+                        if msg_date > end_date:
+                            continue
                         if msg_date < start_date:
-                            break
-                        
-                        # check if within range
-                        if not (start_date <= msg_date <= end_date):
                             continue
                         
                         target_directory = get_output_path(msg_date)
