@@ -46,7 +46,7 @@ pip install -r requirements.txt
 
 If this directory already has a private.py file with the correct bidders, no changes are needed. Otherwise, create a private.py file in this directory and add your email sources following this format:
 
-`python
+```python
 SOURCES = [
     {
         "name": "",                              # Sender Name
@@ -56,12 +56,12 @@ SOURCES = [
         "sender_address": "COMPANY@example.com", # Email Address Match
     }
 ]
-`
+```
 
 Keep the fields blank if you do not want to specify a filter value.
 
 **Example Configuration:**
-`python
+```python
 SOURCES = [
     {
         "name": "",                             
@@ -71,7 +71,7 @@ SOURCES = [
         "sender_address": "@stepower.com",      
     }
 ]
-`
+```
 
 <br>
 
