@@ -107,11 +107,8 @@ def process_emails(start_date=None, end_date=None, auto_yes=False, account_name=
                     except ValueError:
                         print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Please enter a number.")
             else:
-                # REMOVE THIS ONCE AUK Y EMAIL CAN BE REMOVED
-                if stores.Count >= 2:
-                    selected_store = stores.Item(2)
-                else:
-                    selected_store = stores.Item(1)
+                # default to the primary account instead of the hardcoded second one
+                selected_store = stores.Item(1)
         
         print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Using account: {selected_store.Name}")
         
@@ -171,10 +168,14 @@ def process_emails(start_date=None, end_date=None, auto_yes=False, account_name=
                             
                         msg_date = received_time.date()
 
-# check if within range
-                        if msg_date > end_date:
+                        # widen the search window by a few days to catch early/late senders
+                        search_start = start_date - datetime.timedelta(days=2)
+                        search_end = end_date + datetime.timedelta(days=2)
+
+                        # check if within expanded range
+                        if msg_date > search_end:
                             continue
-                        if msg_date < start_date:
+                        if msg_date < search_start:
                             continue
                         
                         target_directory = get_output_path(msg_date)

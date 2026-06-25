@@ -62,38 +62,43 @@ def process_date_range(start_date, end_date):
         
         target_folder = EXCEL_FILES_ROOT / year_str / month_str / day_str
         
-        if target_folder.exists() and any(target_folder.rglob("*.xlsx")):
-            # Check for 16 files requirement
-            all_xlsx = list(target_folder.rglob("*.xlsx"))
-            valid_files = [f for f in all_xlsx if "MasterReport" not in f.name and not f.name.startswith("~$")]
-            
-            if len(valid_files) < 16:
-                print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Skipping merge for {current_date}: Found {len(valid_files)} files (Need 16).")
-                current_date += datetime.timedelta(days=1)
-                continue
-
-            date_str = current_date.strftime("%Y%m%d")
-            output_name = f"MasterReport_{date_str}.xlsx"
-            
-            print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Merging {len(valid_files)} files in {target_folder}...")
-            
-            try:
-                afc_merger.merge_excel_sheets(str(target_folder), output_name)
+        if target_folder.exists():
+            # check for 16 files requirement
+            all_excel_files = []
+            for ext in ('*.xlsx', '*.xls', '*.xlsm'):
+                all_excel_files.extend(target_folder.rglob(ext))
                 
-                # check if created
-                master_path = target_folder / output_name
-                if master_path.exists():
-                    # import original sheets
-                    afc_merger.import_original_sheets(str(master_path), str(target_folder))
-                    
-                    print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} Master report saved: {master_path}")
-                    master_reports.append(str(master_path))
-                else:
-                     print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Failed to create master report.")
-            except Exception as e:
-                print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Merger failed: {e}")
-                traceback.print_exc()
+            valid_files = [f for f in all_excel_files if "MasterReport" not in f.name and not f.name.startswith("~$")]
+            
+            if len(valid_files) > 0:
+                if len(valid_files) < 16:
+                    print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Skipping merge for {current_date}: Found {len(valid_files)} files (Need 16).")
+                    current_date += datetime.timedelta(days=1)
+                    continue
 
+                date_str = current_date.strftime("%Y%m%d")
+                output_name = f"MasterReport_{date_str}.xlsx"
+                
+                print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} Merging {len(valid_files)} files in {target_folder}...")
+                
+                try:
+                    afc_merger.merge_excel_sheets(str(target_folder), output_name)
+                    
+                    # check if created
+                    master_path = target_folder / output_name
+                    if master_path.exists():
+                        # import original sheets
+                        afc_merger.import_original_sheets(str(master_path), str(target_folder))
+                        
+                        print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} Master report saved: {master_path}")
+                        master_reports.append(str(master_path))
+                    else:
+                         print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Failed to create master report.")
+                except Exception as e:
+                    print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Merger failed: {e}")
+                    traceback.print_exc()
+            else:
+                print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Skipping - no files found for {current_date} in {target_folder}")
         else:
             print(f"{config.colors.BOLD}{config.colors.RED}[ERROR]{config.colors.RESET} Skipping - no files found for {current_date} in {target_folder}")
         

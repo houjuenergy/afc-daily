@@ -113,7 +113,10 @@ def import_original_sheets(master_path, source_folder):
             pass
 
 def merge_excel_sheets(path, output_name):
-    all_files = glob.glob(os.path.join(path, "**", "*.xlsx"), recursive=True)
+    # grab all files and filter them first before counting
+    all_files_raw = glob.glob(os.path.join(path, "**", "*.xlsx"), recursive=True)
+    all_files = [f for f in all_files_raw if os.path.basename(f) != output_name and not os.path.basename(f).startswith('~$')]
+    
     print(f"{config.colors.BOLD}{config.colors.YELLOW}[STATUS]{config.colors.RESET} {len(all_files)} excel files to process")
     all_data = [] # hold tables from each file
     
@@ -123,12 +126,6 @@ def merge_excel_sheets(path, output_name):
     
     try:
         for filename in all_files:
-            if os.path.basename(filename) == output_name:
-                continue
-            # skip excel temp lock files
-            if os.path.basename(filename).startswith('~$'):
-                continue
-            
             temp_dir = tempfile.gettempdir()
             temp_filename = os.path.join(temp_dir, f"temp_{int(time.time())}_{os.path.basename(filename)}")
             
@@ -199,7 +196,7 @@ def merge_excel_sheets(path, output_name):
                 should_center = column in config.centered_columns
                 should_wrap = max_len + 2 > 50
                 should_green = column in getattr(config, 'green_columns', [])
-                should_red = column in getattr(config, 'red_columns', []) # btw this only turns red if there is text present in the cell (some days theres no event)
+                should_red = column in getattr(config, 'red_columns', [])
                 
                 # column width wrapping
                 if should_wrap:
@@ -207,9 +204,9 @@ def merge_excel_sheets(path, output_name):
                 else:
                     worksheet.column_dimensions[column_letter].width = max_len + 2
                     
-                # green highlighting (for income col)
+                # green highlighting
                 green_fill = PatternFill(start_color="90EE90", end_color="90EE90", fill_type="solid")
-                # red highlighting (for daily events)
+                # red highlighting
                 red_fill = PatternFill(start_color="FFC1C1", end_color="FFC1C1", fill_type="solid")
                     
                 # apply
@@ -217,7 +214,6 @@ def merge_excel_sheets(path, output_name):
                     # default
                     horiz = None
                     vert = None
-                    
                     
                     if should_center:
                         horiz = 'center'
@@ -234,7 +230,7 @@ def merge_excel_sheets(path, output_name):
                     if should_green:
                         cell.fill = green_fill
                         
-                    if should_red and cell.value: # cell.value checks for text inside the cell
+                    if should_red and cell.value:
                         cell.fill = red_fill
                 
         print(f"{config.colors.BOLD}{config.colors.GREEN}[SUCCESS]{config.colors.RESET} All files merged into: {output_path}")
